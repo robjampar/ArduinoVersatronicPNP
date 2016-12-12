@@ -72,11 +72,11 @@ void moveTo(double x, double y, double speed) {
   double angleB = acos(((pow(a, 2.0) + pow(c, 2.0) - pow(b, 2.0)) / (2.0 * a * c))) // b = cos^-1(a^2 + c^2 - b^2 / 2ac)
   double angleC = acos(((pow(a, 2.0) + pow(b, 2.0) - pow(c, 2.0)) / (2.0 * a * b))) // c = cos^-1(a^2 + b^2 - c^2 / 2ab)
   double angleD = atan(y/x);
-  double angleF = 90.0 + acos(y / a);
+  double angleE = 90.0 + acos(y / a);
   
   
   double angleArmA = angleB + angleD;
-  double angleArmB = angleC - angleF;
+  double angleArmB = angleC - angleE;
   
   moveToAngle(angleArmA, angleArmB, speed);
 }
