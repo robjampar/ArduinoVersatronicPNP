@@ -1,55 +1,48 @@
 #include <math.h> 
 #include "Stepper.h"
-#define ENABLE_LCD true
+#include "ArmBoard.h"
+#include "FrontLCD.h"
 
-#if ENABLE_LCD 
-  #include <Wire.h>
-  #include <LiquidCrystal_PCF8574.h>
-  LiquidCrystal_PCF8574 lcd(0x27);
-#endif
-
-const byte armCommands[8] = {1, 2, 3, 4, 27, 28, 29, 30};
-const int armStateUpdateRate = 1000; // state update rate in ms
-const double armLengthA = 17.5;
-const double armLengthB = 17.6;
+const int heartbeatUpdateRate = 1000; // lcd update rate in ms
 
 String serialCommand = "";
 
-int armStateUpateTime = 0;
-int limitStateResponseIndex = 0;
-bool pendingResponse = false;
-int limitState[4] = {0};
+int heartbeatUpdateTime = 0;
 
-//Stepper stepperX = Stepper(1, 2, 3, 4, 500);
-//Stepper stepperY = Stepper(1, 2, 3, 4, 500);
-//Stepper stepperZ = Stepper(1, 2, 3, 4, 500);
-//Stepper stepperC = Stepper(1, 2, 3, 4, 500);
+
+Stepper *stepperC;
+ArmBoard *armBoard;
+FrontLCD *frontLCD;
 
 void setup() {
-
-  serialCommand.reserve(128);
-
-#if ENABLE_LCD 
-  lcd.begin(16,2);
-  lcd.setBacklight(255);
-  lcd.setCursor(0,0);
-  lcd.print("Hello, world!");
-#endif
   
-  SerialUSB.begin(9600);   // Control Commands from PC Serial (via USB)
-  Serial1.begin(9600);  // Arm Board (via RS232)
-
-  Serial1.write(armCommands[5]); // Disable Vacuum
-  Serial1.write(armCommands[7]); // Disable Vacuum Valve
-
   pinMode(LED_BUILTIN, OUTPUT);
 
+  stepperC = new Stepper(46, 48, 50, 52, 500);
+  armBoard = new ArmBoard(&Serial1);
+  frontLCD = new FrontLCD(armBoard);
+  
+
+  serialCommand.reserve(128);
+  Serial.begin(9600);   // Control Commands from PC Serial (via USB)
+
+  stepperC->step(100000);
+
+  Serial.write("Versatronics PNP setup complete...\n");
 }
 
+
 void loop() {
+  heartbeat();
   updateSerials();
-  updateLimitStates();
-  updateLcd();
+
+  armBoard->update();
+  stepperC->update();
+  frontLCD->update();
+
+  if (armBoard->limitState[3] < 220) {
+    stepperC->direction(!stepperC->currentDirection);
+  }
 }
 
 /** Menu 
@@ -59,29 +52,42 @@ void menu() {
   
 }
 
+
+void heartbeat() {
+  int currentTime = millis();
+  int timeSinceHeartbeatUpateTime = currentTime - heartbeatUpdateTime;
+  if (timeSinceHeartbeatUpateTime > heartbeatUpdateRate) {
+    heartbeatUpdateTime = currentTime;
+
+    char heartbeat_message [128];
+    
+    sprintf (heartbeat_message, "---------- Versatronics PNP heartbeat ----------\nlimit_state: %d %d %d %d\nstep_state: %lu\n", 
+    armBoard->limitState[0], 
+    armBoard->limitState[1], 
+    armBoard->limitState[2], 
+    armBoard->limitState[3], 
+    stepperC->stepsRemaining);
+    
+    Serial.write(heartbeat_message);
+  }
+}
+
 void updateSerials() {
   /**
   * Command from Computer (G-code)
   */
-  while (SerialUSB.available()) {
-    char commandChar = (char)SerialUSB.read();
-    SerialUSB.write(commandChar);
+  while (Serial.available()) {
+    char commandChar = (char)Serial.read();
     serialCommand += commandChar;
     if (commandChar == '\n') {
+      char received_command_message [128];
+    
+      sprintf (received_command_message, "Received command: %s", serialCommand.c_str());
+      Serial.write(received_command_message);
+      
       processSerialCommand(serialCommand);
       serialCommand = "";
     }
-  }
-  
-  /**
-   * Response from Arm Board.
-   */
-  while (Serial1.available()) {
-    int response = (int)Serial1.read();
-    char line_1[64];
-    sprintf (line_1, "Arm response for index %x: '%x'\n", limitStateResponseIndex, response);
-    SerialUSB.write(line_1);
-    processArmResponse(response);
   }
 }
 
@@ -98,31 +104,6 @@ void processSerialCommand(String command) {
    
 }
 
-void processArmResponse(int response) {
-    pendingResponse = false;
-    limitState[limitStateResponseIndex] = response;
-}
-
-bool swapper = true;
-
-void updateLimitStates() {
-  int currentTime = millis();
-  int timeSinceArmStateUpateTime = currentTime - armStateUpateTime;
-  if (timeSinceArmStateUpateTime > armStateUpdateRate) {
-    armStateUpateTime = currentTime;
-    SerialUSB.write("Updating Limit state\n"); 
-    limitStateResponseIndex = (limitStateResponseIndex + 1) % 4;
-    Serial1.write(armCommands[limitStateResponseIndex]);
-  }
-}
-
-void updateLcd() {
-  char line_1 [16];
-  sprintf (line_1, "%d %d %d %d       ", limitState[0], limitState[1], limitState[2], limitState[3]);
-  lcd.setCursor(0,0);
-  lcd.print(line_1);
-}
-
 void home() {
 
   /**
@@ -137,6 +118,9 @@ void pick() {
 void place() {
   
 }
+
+const double armLengthA = 17.5;
+const double armLengthB = 17.6;
 
 /**
  * Converts cartesian co-ordinates to SCARA
