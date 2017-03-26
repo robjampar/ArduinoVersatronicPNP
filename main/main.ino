@@ -33,14 +33,14 @@ void setup() {
   
   pinMode(LED_BUILTIN, OUTPUT);
 
-  stepperX = new Stepper(39, 41, 43, 45, 5000);
+  //stepperX = new Stepper(39, 41, 43, 45, 5000);
   stepperY = new Stepper(47, 49, 51, 53, 5000);
-  stepperZ = new Stepper(38, 40, 42, 44, 5000);
+  //stepperZ = new Stepper(38, 40, 42, 44, 5000);
   stepperC = new Stepper(46, 48, 50, 52, 5000);
   
   armBoard = new ArmBoard(&Serial1);
   controller = new Controller(&Serial);
-  //frontLCD = new FrontLCD(armBoard);
+  frontLCD = new FrontLCD(armBoard);
 
   stepperC->rotate(360*10);
 
