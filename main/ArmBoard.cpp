@@ -13,8 +13,8 @@ ArmBoard::ArmBoard(HardwareSerial *serialPort) {
 void ArmBoard::update() {
 
   // Send serial commands
-  int currentTime = millis();
-  int timeSinceArmStateUpateTime = currentTime - armStateUpateTime;
+  unsigned long currentTime = millis();
+  unsigned long timeSinceArmStateUpateTime = currentTime - armStateUpateTime;
   if (timeSinceArmStateUpateTime > armStateUpdateRate) {
     this->armStateUpateTime = currentTime;
     //Serial.write("Updating Limit state\n"); 

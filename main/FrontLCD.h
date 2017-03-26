@@ -10,15 +10,13 @@
 #include <WProgram.h>
 #endif
 
-const int lcdUpdateRate = 50; // lcd update rate in ms
 
 class FrontLCD {
 
   private:
   
-    int lcdUpateTime = 0;
     ArmBoard *armBoard;
-   
+    
   public:
         
     FrontLCD(ArmBoard *armBoard);

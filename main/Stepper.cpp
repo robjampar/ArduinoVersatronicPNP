@@ -1,6 +1,6 @@
 #include "Stepper.h"
 
-Stepper::Stepper(int modePin, int enablePin, int dirPin, int stepPin, float stepsPerRevolution, float maxVelocity, bool direction) {
+Stepper::Stepper(int modePin, int enablePin, int dirPin, int stepPin, float stepsPerRevolution, float maxRPS, float acceleration, bool direction) {
 
   this->dirPin = dirPin;
   this->stepPin = stepPin;
@@ -8,8 +8,9 @@ Stepper::Stepper(int modePin, int enablePin, int dirPin, int stepPin, float step
   this->modePin = modePin;
   this->currentDirection = direction;
   this->stepsPerRevolution = stepsPerRevolution;
-  this->currentVelocity = 0;
-  this->maxVelocity = maxVelocity;
+  this->currentRPS = 0;
+  this->maxRPS = maxRPS;
+  this->acceleration = acceleration;
   
   pinMode(dirPin, OUTPUT);
   pinMode(stepPin, OUTPUT);
@@ -22,17 +23,24 @@ Stepper::Stepper(int modePin, int enablePin, int dirPin, int stepPin, float step
 }
 
 void Stepper::step() {
-  if (this->stepsRemaining > 0) {
+  unsigned long currentTime = micros();
+  if (this->stepsRemaining > 0 && this->nextStepTime < currentTime)  {
+    if(currentTime - this->nextStepTime > 500) {
+      Serial.write("Stepper overshot\n");
+    }
     digitalWrite(this->stepPin, HIGH);
     delayMicroseconds(10);
     digitalWrite(this->stepPin, LOW);
 
     this->stepsRemaining = this->stepsRemaining - 1;
+
+    this->calculateNextStepTime(currentTime);
   }
 }
 
 void Stepper::step(long steps) {
   this->stepsRemaining += steps;
+  this->calculateNextStepTime(micros());
 }
 
 void Stepper::direction(bool direction) {
@@ -63,12 +71,19 @@ void Stepper::rotate(float degrees) {
 }
 
 void Stepper::update() {
-  if (this->stepsRemaining > 0) {
-    unsigned long currentTime = micros();
-    if (this->nextStepTime < currentTime){
-      this->step();
-      this->nextStepTime = currentTime + 200;
-    }
-  }
-
+  this->step();
 }
+
+
+void Stepper::calculateNextStepTime(unsigned long currentTime) {
+
+  if(this->currentRPS <= this->maxRPS) {
+    this->currentRPS += ((this->timeBetweenSteps / 1000000.0) * this->acceleration);
+    // Serial.println((float)(this->currentRPS),5);
+    this->timeBetweenSteps = (1.0f / (this->stepsPerRevolution * this->currentRPS)) * 1000000.0;
+    //Serial.println((this->timeBetweenSteps));
+  }
+  this->nextStepTime = currentTime + this->timeBetweenSteps;
+}
+
+

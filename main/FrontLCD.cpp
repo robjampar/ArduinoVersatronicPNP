@@ -16,15 +16,9 @@ FrontLCD::FrontLCD(ArmBoard *armBoard) {
 }
 
 void FrontLCD::update() {
-  
-  int currentTime = millis();
-  int timeSinceLCDUpateTime = currentTime - this->lcdUpateTime;
-  if (timeSinceLCDUpateTime > lcdUpdateRate) {
-    char line_1 [16];
-    sprintf (line_1, "%d %d %d %d       ", this->armBoard->limitState[0], this->armBoard->limitState[1], this->armBoard->limitState[2], this->armBoard->limitState[3]);
-    lcd.setCursor(0,0);
-    lcd.print(line_1);
-  }
+  char line_1 [16];
+  sprintf (line_1, "%d %d %d %d       ", this->armBoard->limitState[0], this->armBoard->limitState[1], this->armBoard->limitState[2], this->armBoard->limitState[3]);
+  lcd.setCursor(0,0);
+  lcd.print(line_1);
 }
-
 

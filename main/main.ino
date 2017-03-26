@@ -1,48 +1,70 @@
 #include <math.h> 
 #include "Stepper.h"
 #include "ArmBoard.h"
+#include "Controller.h"
 #include "FrontLCD.h"
 
-const int heartbeatUpdateRate = 1000; // lcd update rate in ms
+#if defined(ARDUINO) && ARDUINO >= 100
+#include <Arduino.h>
+#else
+#include <WProgram.h>
+#endif
 
-String serialCommand = "";
+#include <TimedAction.h>
+#include <TimerOne.h>
 
-int heartbeatUpdateTime = 0;
+Stepper *stepperX; // z
+Stepper *stepperY; // arm 0
+Stepper *stepperZ; // arm 1
+Stepper *stepperC; // rotate
 
-
-Stepper *stepperC;
 ArmBoard *armBoard;
+Controller *controller;
 FrontLCD *frontLCD;
+
+void updateLCD(){
+  frontLCD->update();
+}
+
+TimedAction lcdThread = TimedAction(100, updateLCD);
+
 
 void setup() {
   
   pinMode(LED_BUILTIN, OUTPUT);
 
-  stepperC = new Stepper(46, 48, 50, 52, 500);
-  armBoard = new ArmBoard(&Serial1);
-  frontLCD = new FrontLCD(armBoard);
+  stepperX = new Stepper(39, 41, 43, 45, 5000);
+  stepperY = new Stepper(47, 49, 51, 53, 5000);
+  stepperZ = new Stepper(38, 40, 42, 44, 5000);
+  stepperC = new Stepper(46, 48, 50, 52, 5000);
   
+  armBoard = new ArmBoard(&Serial1);
+  controller = new Controller(&Serial);
+  //frontLCD = new FrontLCD(armBoard);
 
-  serialCommand.reserve(128);
-  Serial.begin(9600);   // Control Commands from PC Serial (via USB)
+  stepperC->rotate(360*10);
 
-  stepperC->step(100000);
 
-  Serial.write("Versatronics PNP setup complete...\n");
+  Timer1.initialize(50);         // initialize timer1, and set a 50us period
+  Timer1.attachInterrupt(callback); 
 }
 
 
-void loop() {
-  heartbeat();
-  updateSerials();
-
-  armBoard->update();
+void callback() { // Time sensitive loop
   stepperC->update();
-  frontLCD->update();
+  //stepperX->update();
+}
 
-  if (armBoard->limitState[3] < 220) {
-    stepperC->direction(!stepperC->currentDirection);
-  }
+void loop() { // Non-time sensitive loop
+  
+  controller->update();
+  armBoard->update();
+  lcdThread.check();
+
+//  if (armBoard->limitState[3] < 250) {
+//    stepperC->direction(!stepperC->currentDirection);
+//  }
+
 }
 
 /** Menu 
@@ -53,56 +75,6 @@ void menu() {
 }
 
 
-void heartbeat() {
-  int currentTime = millis();
-  int timeSinceHeartbeatUpateTime = currentTime - heartbeatUpdateTime;
-  if (timeSinceHeartbeatUpateTime > heartbeatUpdateRate) {
-    heartbeatUpdateTime = currentTime;
-
-    char heartbeat_message [128];
-    
-    sprintf (heartbeat_message, "---------- Versatronics PNP heartbeat ----------\nlimit_state: %d %d %d %d\nstep_state: %lu\n", 
-    armBoard->limitState[0], 
-    armBoard->limitState[1], 
-    armBoard->limitState[2], 
-    armBoard->limitState[3], 
-    stepperC->stepsRemaining);
-    
-    Serial.write(heartbeat_message);
-  }
-}
-
-void updateSerials() {
-  /**
-  * Command from Computer (G-code)
-  */
-  while (Serial.available()) {
-    char commandChar = (char)Serial.read();
-    serialCommand += commandChar;
-    if (commandChar == '\n') {
-      char received_command_message [128];
-    
-      sprintf (received_command_message, "Received command: %s", serialCommand.c_str());
-      Serial.write(received_command_message);
-      
-      processSerialCommand(serialCommand);
-      serialCommand = "";
-    }
-  }
-}
-
-void processSerialCommand(String command) {
-  
-  /*
-   * G0 X{0} Y{0} Z{0} F{0} move
-   * G28 X Y Z home
-   * 
-   * M800 ID{Id} I{Index} feeder 
-   * M801 M802 solenoid on/off
-   * M803 M804 pump on/off
-   */
-   
-}
 
 void home() {
 

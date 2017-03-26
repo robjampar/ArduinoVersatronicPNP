@@ -14,7 +14,7 @@ class ArmBoard {
 
   private:
     
-    int armStateUpateTime = 0;
+    unsigned long armStateUpateTime = 0;
     
     int limitStateResponseIndex = 0;
     bool pendingResponse = false;

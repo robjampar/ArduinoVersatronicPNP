@@ -37,13 +37,17 @@ class Stepper {
     int modePin;
     
     float currentAngle = 0;
-    float currentVelocity = 0;
-    float maxVelocity = 1;
+    float currentRPS = 0;
+    float acceleration = 0.25;
+    float maxRPS = 2;
 
     float stepsPerRevolution;
 
     unsigned long nextStepTime = 0;
+    unsigned long timeBetweenSteps = 99999;
+    
     void step();
+    void calculateNextStepTime(unsigned long currentTime);
 
   public:
 
@@ -55,7 +59,8 @@ class Stepper {
             int dirPin,
             int stepPin,
             float stepsPerRevolution,
-            float maxVelocity = 1,
+            float maxRPS = 2.0,
+            float acceleration = 10.0,
             bool direction = CLOCKWISE);
 
     void direction(bool direction);
